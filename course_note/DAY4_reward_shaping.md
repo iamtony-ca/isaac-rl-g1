@@ -136,3 +136,58 @@ cd /isaac-sim/IsaacLab
 
 ## 다음
 - 5일차: 지금까지 proprioceptive 관찰만 썼다. **height-scan/카메라(exteroceptive)** 를 observation에 넣어 거친 지형·비전 기반 보행으로 확장.
+
+---
+
+## 부록 A — Reward weight가 실제 코드 어디에 있나 (상속 3단계)
+
+DAY4에서 소개한 weight들은 **한 파일이 아니라 상속 체인에 흩어져** 있다. "이 항의 실제 weight가 몇이냐"는 **가장 아래에서 마지막으로 덮어쓴 곳**을 봐야 한다.
+
+> 경로 약칭: `velocity/` = `source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/`
+
+### 상속 3단계 (아래로 갈수록 우선)
+```
+[1] 베이스 기본값        velocity/velocity_env_cfg.py:231        class RewardsCfg
+        ↓ 상속
+[2] G1 rough 오버라이드   velocity/config/g1/rough_env_cfg.py:20  class G1Rewards(RewardsCfg)
+        ↓ 상속
+[3] G1 flat 오버라이드    velocity/config/g1/flat_env_cfg.py:14   G1FlatEnvCfg.__post_init__
+```
+`Isaac-Velocity-Flat-G1-v0` 학습 시 이 셋이 순서대로 적용되고, **가장 아래에서 건드린 값이 최종값**.
+
+### weight를 세팅하는 두 문법 (섞여 있어 헷갈림)
+```python
+# ① 항 전체 재정의 — rough_env_cfg.py:29
+track_ang_vel_z_exp = RewTerm(func=mdp.track_ang_vel_z_world_exp, weight=2.0, ...)
+# ② __post_init__에서 weight만 수정 — flat_env_cfg.py:30
+self.rewards.action_rate_l2.weight = -0.005
+```
+
+### Flat G1 각 항의 "최종 weight가 어디서 왔나"
+| Reward 항 | 최종 weight | 고칠 위치 |
+|---|---:|---|
+| `track_lin_vel_xy_exp` | +1.0 | `rough_env_cfg.py:24` |
+| `track_ang_vel_z_exp` | +1.0 | `flat_env_cfg.py:28` (rough 2.0을 덮어씀) |
+| `feet_air_time` | +0.75 | `flat_env_cfg.py:32` |
+| `termination_penalty` | −200 | `rough_env_cfg.py:23` |
+| `action_rate_l2` | −0.005 | `flat_env_cfg.py:30` |
+| `dof_acc_l2` | −1.0e-7 | `flat_env_cfg.py:31` |
+| `dof_torques_l2` | −2.0e-6 | `flat_env_cfg.py:34` |
+| `flat_orientation_l2` | −1.0 | `rough_env_cfg.py:135` |
+| `lin_vel_z_l2` | −0.2 | `flat_env_cfg.py:29` |
+| `feet_slide` | −0.1 | `rough_env_cfg.py:41` |
+| `joint_deviation_hip/arms/fingers/torso` | −0.1/−0.1/−0.05/−0.1 | `rough_env_cfg.py:57,62,78,96` |
+| `dof_pos_limits` | −1.0 | `rough_env_cfg.py:51` |
+
+> 규칙: **flat → rough → base 순으로 내려가며 그 항을 마지막으로 건드린 곳**이 최종값.
+
+### weight(숫자) vs 함수(계산)는 다른 파일
+- **weight** = 위 3개 config → "각 항을 얼마나 중요하게 볼까"
+- **함수** = `velocity/mdp/rewards.py`(locomotion 전용) + `source/isaaclab/isaaclab/envs/mdp/rewards.py`(공통) → "무엇을 계산하나"
+
+### 4번째 층 — 런타임 hydra override (파일 안 고침)
+```bash
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py \
+  --task Isaac-Velocity-Flat-G1-v0 --headless env.rewards.feet_air_time.weight=1.5
+```
+빠른 실험은 hydra(재현 명령이 남음), 영구 변경은 위 표의 파일:줄 직접 수정.
