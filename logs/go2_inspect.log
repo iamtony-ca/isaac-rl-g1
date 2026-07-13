@@ -1,0 +1,98 @@
+[3gH    H    H    H    H    H    H    H    H    H    H    H    H    H    H    H    H    H    H    H   [INFO] Using python from: /isaac-sim/IsaacLab/_isaac_sim/python.sh
+[WARN][AppLauncher]: There are no arguments attached to the ArgumentParser object. If you have your own arguments, please load your own arguments before calling the `AppLauncher.add_app_launcher_args` method. This allows the method to check the validity of the arguments and perform checks for argument names.
+[INFO][AppLauncher]: Using device: cuda:0
+[INFO][AppLauncher]: Loading experience file: /isaac-sim/IsaacLab/apps/isaaclab.python.headless.kit
+Loading user config located at: '/isaac-sim/kit/data/Kit/Isaac-Sim/5.1/user.config.json'
+[Info] [carb] Logging to file: /isaac-sim/kit/logs/Kit/Isaac-Sim/5.1/kit_20260714_002811.log
+2026-07-13T15:28:11Z [263ms] [Warning] [omni.usd_config.extension] Enable omni.materialx.libs extension to use MaterialX
+2026-07-13T15:28:12Z [511ms] [Warning] [carb] Acquiring non optional plugin interface which is not listed as dependency: [omni::physx::IPhysxBenchmarks v1.0] (plugin: <default plugin>), by client: omni.physics.physx.plugin. Add it to CARB_PLUGIN_IMPL_DEPS() macro of a client.
+2026-07-13T15:28:12Z [627ms] [Warning] [omni.isaac.dynamic_control] omni.isaac.dynamic_control is deprecated as of Isaac Sim 4.5. No action is needed from end-users.
+
+|---------------------------------------------------------------------------------------------|
+| Driver Version: 580.159.03    | Graphics API: Vulkan
+|=============================================================================================|
+| GPU | Name                             | Active | LDA | GPU Memory | Vendor-ID | LUID       |
+|     |                                  |        |     |            | Device-ID | UUID       |
+|     |                                  |        |     |            | Bus-ID    |            |
+|---------------------------------------------------------------------------------------------|
+| 0   | NVIDIA GeForce RTX 5090          | Yes: 0 |     | 32607   MB | 10de      | 0          |
+|     |                                  |        |     |            | 2b85      | 2634907d.. |
+|     |                                  |        |     |            | 2         |            |
+|=============================================================================================|
+| OS: 24.04.4 LTS (Noble Numbat) ubuntu, Version: 24.04.4, Kernel: 6.17.0-35-generic
+| XServer Vendor: The X.Org Foundation, XServer Version: 12101011 (1.21.1.11)
+| Processor: Intel(R) Core(TM) Ultra 7 265KF
+| Cores: 20 | Logical Cores: 20
+|---------------------------------------------------------------------------------------------|
+| Total Memory (MB): 63921 | Free Memory: 53193
+| Total Page/Swap (MB): 8191 | Free Page/Swap: 0
+|---------------------------------------------------------------------------------------------|
+2026-07-13T15:28:13Z [2,447ms] [Warning] [gpu.foundation.plugin] CPU performance profile is set to powersave. This profile sets the CPU to the lowest frequency reducing performance.
+2026-07-13T15:28:13Z [2,455ms] [Warning] [gpu.foundation.plugin] IOMMU is enabled.
+
+[36m======================================================================================[0m
+[36m[1m[INFO][IsaacLab]: Logging to file: /tmp/isaaclab/logs/isaaclab_2026-07-14_00-28-14.log[0m
+[36m======================================================================================[0m
+
+[33m00:28:14 [simulation_context.py] WARNING: The `enable_external_forces_every_iteration` parameter in the PhysxCfg is set to False. If you are experiencing noisy velocities, consider enabling this flag. You may need to slightly increase the number of velocity iterations (setting it to 1 or 2 rather than 0), together with this flag, to improve the accuracy of velocity updates.[0m
+
+======================================================================
+Go2 ARTICULATION 구조 (4족 / DC-Motor)
+======================================================================
+DOF(관절) 수         : 12
+body(링크) 수        : 19
+actuator 그룹 수     : 1
+
+--- 관절 이름 (action/joint observation 순서와 동일) ---
+  [ 0] FL_hip_joint
+  [ 1] FR_hip_joint
+  [ 2] RL_hip_joint
+  [ 3] RR_hip_joint
+  [ 4] FL_thigh_joint
+  [ 5] FR_thigh_joint
+  [ 6] RL_thigh_joint
+  [ 7] RR_thigh_joint
+  [ 8] FL_calf_joint
+  [ 9] FR_calf_joint
+  [10] RL_calf_joint
+  [11] RR_calf_joint
+
+--- 링크(body) 이름 (contact/height-scan에서 body_names로 참조) ---
+  [ 0] base
+  [ 1] FL_hip
+  [ 2] FR_hip
+  [ 3] Head_upper
+  [ 4] RL_hip
+  [ 5] RR_hip
+  [ 6] FL_thigh
+  [ 7] FR_thigh
+  [ 8] Head_lower
+  [ 9] RL_thigh
+  [10] RR_thigh
+  [11] FL_calf
+  [12] FR_calf
+  [13] RL_calf
+  [14] RR_calf
+  [15] FL_foot
+  [16] FR_foot
+  [17] RL_foot
+  [18] RR_foot
+
+--- 기본 자세 default_joint_pos (초기/기준 각도) ---
+  FL_hip_joint                     = +0.100 rad
+  FR_hip_joint                     = -0.100 rad
+  RL_hip_joint                     = +0.100 rad
+  RR_hip_joint                     = -0.100 rad
+  FL_thigh_joint                   = +0.800 rad
+  FR_thigh_joint                   = +0.800 rad
+  RL_thigh_joint                   = +1.000 rad
+  RR_thigh_joint                   = +1.000 rad
+  FL_calf_joint                    = -1.500 rad
+  FR_calf_joint                    = -1.500 rad
+  RL_calf_joint                    = -1.500 rad
+  RR_calf_joint                    = -1.500 rad
+
+--- actuator 그룹별 PD 게인 ---
+  base_legs : 관절 12개, Kp≈   25.0, Kd≈  0.50
+======================================================================
+

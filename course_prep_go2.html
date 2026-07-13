@@ -1,0 +1,544 @@
+<title>Unitree Go2 (4족) RL — G1 파이프라인 델타 노트</title>
+<style>
+  :root {
+    --bg:#E7EAEE; --surface:#FBFCFD; --surface-2:#F0F2F6; --surface-3:#E4E8ED;
+    --ink:#161A23; --ink-2:#3A4252; --muted:#5C6577; --faint:#8A93A5;
+    --line:#D2D8E0; --line-2:#C0C8D2;
+    --accent:#2159C4; --accent-ink:#173F91; --accent-soft:rgba(33,89,196,.10); --accent-line:rgba(33,89,196,.30);
+    --signal:#B45309; --signal-soft:rgba(180,83,9,.10);
+    --pos:#2F7D4F; --pos-soft:rgba(47,125,79,.12);
+    --neg:#B0433A; --neg-soft:rgba(176,67,58,.12);
+    --shadow:0 1px 2px rgba(20,26,38,.04), 0 8px 24px -12px rgba(20,26,38,.18);
+    --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --maxw:1160px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0D1016; --surface:#151A22; --surface-2:#1B2027; --surface-3:#232a34;
+      --ink:#E7EBF1; --ink-2:#C2CAD6; --muted:#96A0B2; --faint:#6B7688;
+      --line:#28303B; --line-2:#333d4a;
+      --accent:#5B9BFF; --accent-ink:#A8C8FF; --accent-soft:rgba(91,155,255,.13); --accent-line:rgba(91,155,255,.28);
+      --signal:#E0A458; --signal-soft:rgba(224,164,88,.13);
+      --pos:#5FBF87; --pos-soft:rgba(95,191,135,.14);
+      --neg:#E0776C; --neg-soft:rgba(224,119,108,.14);
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 12px 30px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#E7EAEE; --surface:#FBFCFD; --surface-2:#F0F2F6; --surface-3:#E4E8ED;
+    --ink:#161A23; --ink-2:#3A4252; --muted:#5C6577; --faint:#8A93A5;
+    --line:#D2D8E0; --line-2:#C0C8D2;
+    --accent:#2159C4; --accent-ink:#173F91; --accent-soft:rgba(33,89,196,.10); --accent-line:rgba(33,89,196,.30);
+    --signal:#B45309; --signal-soft:rgba(180,83,9,.10);
+    --pos:#2F7D4F; --pos-soft:rgba(47,125,79,.12);
+    --neg:#B0433A; --neg-soft:rgba(176,67,58,.12);
+    --shadow:0 1px 2px rgba(20,26,38,.04), 0 8px 24px -12px rgba(20,26,38,.18);
+  }
+  :root[data-theme="dark"]{
+    --bg:#0D1016; --surface:#151A22; --surface-2:#1B2027; --surface-3:#232a34;
+    --ink:#E7EBF1; --ink-2:#C2CAD6; --muted:#96A0B2; --faint:#6B7688;
+    --line:#28303B; --line-2:#333d4a;
+    --accent:#5B9BFF; --accent-ink:#A8C8FF; --accent-soft:rgba(91,155,255,.13); --accent-line:rgba(91,155,255,.28);
+    --signal:#E0A458; --signal-soft:rgba(224,164,88,.13);
+    --pos:#5FBF87; --pos-soft:rgba(95,191,135,.14);
+    --neg:#E0776C; --neg-soft:rgba(224,119,108,.14);
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 12px 30px -14px rgba(0,0,0,.6);
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.65;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+  ::selection{background:var(--accent-soft);}
+  a{color:inherit}
+  h1,h2,h3,h4{text-wrap:balance;line-height:1.15;margin:0;font-weight:750;letter-spacing:-.015em}
+
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 clamp(18px,4vw,40px)}
+  .layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:clamp(28px,5vw,64px);
+    max-width:var(--maxw);margin:0 auto;padding:0 clamp(18px,4vw,40px)}
+
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--accent-ink);font-weight:600}
+  .mono{font-family:var(--mono)}
+
+  header.hero{border-bottom:1px solid var(--line);background:
+    radial-gradient(120% 130% at 88% -20%,var(--accent-soft),transparent 60%);}
+  .hero-inner{max-width:var(--maxw);margin:0 auto;padding:clamp(40px,7vw,76px) clamp(18px,4vw,40px) clamp(30px,4vw,46px)}
+  .hero .kick{display:flex;align-items:center;gap:10px;margin-bottom:22px;flex-wrap:wrap}
+  .hero .kick .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+  .hero h1{font-size:clamp(30px,5.4vw,54px);letter-spacing:-.03em;font-weight:800;max-width:17ch}
+  .hero h1 em{font-style:normal;color:var(--accent-ink)}
+  .hero .thesis{margin-top:20px;font-size:clamp(15px,2vw,18.5px);color:var(--ink-2);max-width:62ch;line-height:1.6}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+  .chip{font-family:var(--mono);font-size:12px;padding:5px 11px;border:1px solid var(--line-2);border-radius:100px;
+    background:var(--surface);color:var(--ink-2);white-space:nowrap}
+  .chip b{color:var(--accent-ink);font-weight:600}
+
+  .stack{margin-top:34px;display:flex;flex-direction:column;gap:5px;max-width:580px}
+  .stack .row{display:flex;align-items:center;gap:12px;padding:11px 15px;border:1px solid var(--line);
+    border-radius:9px;background:var(--surface);font-size:13.5px}
+  .stack .row .lyr{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);width:44px;flex:none}
+  .stack .row .nm{font-weight:650}
+  .stack .row .ds{color:var(--muted);font-size:12.5px;margin-left:auto;text-align:right;font-family:var(--mono)}
+  .stack .row.hl{border-color:var(--accent-line);background:var(--accent-soft)}
+  .stack .row.hl .lyr{color:var(--accent-ink)}
+
+  nav.rail{position:sticky;top:0;align-self:start;padding-top:38px;padding-bottom:38px;
+    max-height:100vh;overflow:auto}
+  nav.rail .navtitle{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--faint);margin:0 0 14px 12px}
+  nav.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+  nav.rail a{display:flex;gap:10px;align-items:baseline;text-decoration:none;padding:7px 12px;border-radius:7px;
+    color:var(--muted);font-size:13.5px;border-left:2px solid transparent;transition:background .15s,color .15s}
+  nav.rail a .n{font-family:var(--mono);font-size:11px;color:var(--faint);width:20px;flex:none}
+  nav.rail a:hover{background:var(--surface-2);color:var(--ink)}
+  nav.rail a.active{color:var(--ink);background:var(--surface-2);border-left-color:var(--accent);font-weight:600}
+  nav.rail a.active .n{color:var(--accent-ink)}
+  .theme-btn{margin:18px 0 0 12px;font-family:var(--mono);font-size:11.5px;color:var(--muted);
+    background:none;border:1px solid var(--line-2);border-radius:7px;padding:6px 11px;cursor:pointer}
+  .theme-btn:hover{color:var(--ink);border-color:var(--accent-line)}
+  .theme-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  main{padding:38px 0 90px;min-width:0}
+  section.day{padding:38px 0;border-top:1px solid var(--line);scroll-margin-top:20px}
+  section.day:first-of-type{border-top:none;padding-top:8px}
+  .day-head{display:flex;align-items:baseline;gap:16px;margin-bottom:8px;flex-wrap:wrap}
+  .day-num{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent-ink);
+    border:1px solid var(--accent-line);border-radius:7px;padding:3px 9px;background:var(--accent-soft)}
+  section.day h2{font-size:clamp(21px,3vw,29px);letter-spacing:-.02em}
+  .day-sub{color:var(--muted);font-size:14px;margin:2px 0 0}
+  .lede{font-size:15.5px;color:var(--ink-2);margin:18px 0 4px;max-width:66ch}
+  p{max-width:66ch;color:var(--ink-2)}
+  p strong,li strong{color:var(--ink);font-weight:650}
+  section.day h3{font-size:16px;margin:30px 0 12px;letter-spacing:-.01em}
+  section.day h3 .hx{font-family:var(--mono);color:var(--accent-ink);font-size:13px;margin-right:8px}
+  ul.clean{margin:12px 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;max-width:66ch}
+  ul.clean li{position:relative;padding-left:20px;color:var(--ink-2);font-size:14.5px}
+  ul.clean li::before{content:"";position:absolute;left:2px;top:9px;width:6px;height:6px;border-radius:1.5px;
+    background:var(--accent);opacity:.65}
+
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:22px 0}
+  .tile{border:1px solid var(--line);border-radius:11px;padding:15px 16px;background:var(--surface);box-shadow:var(--shadow)}
+  .tile .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+  .tile .v{font-size:27px;font-weight:780;letter-spacing:-.02em;margin-top:6px;font-variant-numeric:tabular-nums}
+  .tile .v small{font-size:14px;color:var(--muted);font-weight:600;letter-spacing:0}
+  .tile .cap{font-size:12px;color:var(--muted);margin-top:3px}
+  .tile.accent .v{color:var(--accent-ink)}
+
+  .callout{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:9px;
+    background:var(--surface);padding:15px 17px;margin:20px 0;font-size:14.5px;color:var(--ink-2);max-width:70ch}
+  .callout .tag{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--accent-ink);font-weight:600;display:block;margin-bottom:5px}
+  .callout.warn{border-left-color:var(--signal);background:var(--signal-soft)}
+  .callout.warn .tag{color:var(--signal)}
+  .callout strong{color:var(--ink)}
+
+  pre{margin:18px 0;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.7px;line-height:1.7;color:var(--ink-2)}
+  pre .c{color:var(--faint)}
+  pre .a{color:var(--accent-ink)}
+  code.inl{font-family:var(--mono);font-size:.88em;background:var(--surface-2);border:1px solid var(--line);
+    border-radius:5px;padding:1px 5px;color:var(--ink)}
+
+  .tbl{margin:20px 0;overflow-x:auto;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:13.4px;min-width:440px}
+  th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}
+  thead th{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;background:var(--surface-2)}
+  tbody tr:last-child td{border-bottom:none}
+  td.num{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+  td .pos{color:var(--pos);font-weight:600}
+  td .neg{color:var(--neg);font-weight:600}
+  .tagpos,.tagneg,.tagsig{font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:5px;font-weight:600}
+  .tagpos{color:var(--pos);background:var(--pos-soft)}
+  .tagneg{color:var(--neg);background:var(--neg-soft)}
+  .tagsig{color:var(--signal);background:var(--signal-soft)}
+
+  .meters{margin:20px 0;display:flex;flex-direction:column;gap:13px;max-width:70ch}
+  .meter{display:grid;grid-template-columns:150px 1fr auto;align-items:center;gap:14px}
+  .meter .lab{font-size:13px;color:var(--ink-2)}
+  .meter .lab b{display:block;font-family:var(--mono);font-size:10.5px;color:var(--faint);font-weight:500}
+  .track{height:12px;border-radius:100px;background:var(--surface-3);overflow:hidden}
+  .fill{height:100%;border-radius:100px;background:var(--accent);opacity:.9}
+  .fill.warn{background:var(--signal)}
+  .fill.pos{background:var(--pos)}
+  .fill.neg{background:var(--neg)}
+  .meter .val{font-family:var(--mono);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink);min-width:60px;text-align:right}
+
+  .check{margin:18px 0;padding:16px 18px;border:1px dashed var(--line-2);border-radius:11px;background:var(--surface)}
+  .check .ct{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:11px}
+  .check ol{margin:0;padding-left:0;list-style:none;counter-reset:ck;display:flex;flex-direction:column;gap:8px}
+  .check li{counter-increment:ck;position:relative;padding-left:30px;font-size:13.6px;color:var(--ink-2)}
+  .check li::before{content:counter(ck,decimal-leading-zero);position:absolute;left:0;top:0;font-family:var(--mono);
+    font-size:11px;color:var(--accent-ink);font-weight:600;border:1px solid var(--accent-line);border-radius:5px;
+    width:21px;height:19px;display:flex;align-items:center;justify-content:center}
+
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0}
+  .panel{border:1px solid var(--line);border-radius:11px;padding:16px 17px;background:var(--surface)}
+  .panel h4{font-size:14px;margin-bottom:9px}
+  .panel .ph{font-family:var(--mono);font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px}
+
+  footer{border-top:1px solid var(--line);background:var(--surface);margin-top:20px}
+  .foot-in{max-width:var(--maxw);margin:0 auto;padding:34px clamp(18px,4vw,40px) 50px}
+  .filetree{font-family:var(--mono);font-size:12.5px;color:var(--muted);line-height:1.9;background:var(--surface-2);
+    border:1px solid var(--line);border-radius:10px;padding:16px 18px;overflow-x:auto;margin:16px 0}
+  .filetree b{color:var(--accent-ink);font-weight:600}
+
+  @media (max-width:860px){
+    .layout{grid-template-columns:1fr;gap:0}
+    nav.rail{position:static;max-height:none;padding:16px 0 4px;border-bottom:1px solid var(--line);
+      display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+    nav.rail .navtitle{display:none}
+    nav.rail ol{flex-direction:row;flex-wrap:wrap;gap:5px}
+    nav.rail a{border-left:none;border:1px solid var(--line);padding:5px 10px;font-size:12.5px}
+    nav.rail a.active{border-color:var(--accent-line)}
+    nav.rail a .n{width:auto}
+    .theme-btn{margin:0}
+    .two{grid-template-columns:1fr}
+    .meter{grid-template-columns:120px 1fr auto}
+  }
+  @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+  html{scroll-behavior:smooth}
+</style>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="kick">
+      <span class="dot"></span>
+      <span class="eyebrow">4족 델타 노트 · G1 파이프라인을 Unitree Go2로 재진행</span>
+    </div>
+    <h1>휴머노이드에서 <em>네 다리</em>로 — 90%는 그대로, 바뀌는 것만</h1>
+    <p class="thesis">G1(휴머노이드)으로 익힌 강좌 전체를 <strong>Unitree Go2(4족)</strong>로 다시 돌렸다.
+      프레임워크·PPO·센서·export는 <strong>그대로 재사용</strong>하고, 로봇 형태에서 오는 것 — 12-DOF·DC모터·quadruped
+      reward — 만 새로 봤다. 모든 수치는 이 환경에서 <strong>직접 학습을 돌린 실측</strong>이다.</p>
+    <div class="chips">
+      <span class="chip">Isaac Sim <b>5.1.0</b></span>
+      <span class="chip">Isaac Lab <b>2.3.2</b></span>
+      <span class="chip">Robot <b>Unitree Go2</b></span>
+      <span class="chip">PPO <b>rsl_rl</b></span>
+      <span class="chip">DOF <b>12</b></span>
+      <span class="chip">GPU <b>RTX 5090</b></span>
+    </div>
+    <div class="stack" aria-label="유지 vs 델타">
+      <div class="row"><span class="lyr">유지</span><span class="nm">PPO · GAE · clip · rsl_rl</span><span class="ds">알고리즘 그대로</span></div>
+      <div class="row hl"><span class="lyr">델타</span><span class="nm">형태 · 12-DOF 4족</span><span class="ds">G1 23~37 → 12</span></div>
+      <div class="row hl"><span class="lyr">델타</span><span class="nm">DC-Motor 액추에이터</span><span class="ds">Implicit PD → DCMotor</span></div>
+      <div class="row hl"><span class="lyr">델타</span><span class="nm">Quadruped Reward</span><span class="ds">팔·손 항 제거</span></div>
+      <div class="row hl"><span class="lyr">델타</span><span class="nm">Observation</span><span class="ds">48 / 235 (G1 123 / 310)</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="rail" aria-label="델타 주제 네비게이션">
+    <p class="navtitle">Go2 Delta</p>
+    <ol>
+      <li><a href="#overview"><span class="n">00</span><span>G1 vs Go2</span></a></li>
+      <li><a href="#struct"><span class="n">01</span><span>12-DOF 구조</span></a></li>
+      <li><a href="#motor"><span class="n">02</span><span>DC-Motor</span></a></li>
+      <li><a href="#reward"><span class="n">03</span><span>Quadruped Reward</span></a></li>
+      <li><a href="#train"><span class="n">04</span><span>학습 · 튜닝</span></a></li>
+      <li><a href="#rough"><span class="n">05</span><span>Flat vs Rough</span></a></li>
+      <li><a href="#deploy"><span class="n">06</span><span>Export · Sim2Real</span></a></li>
+    </ol>
+    <button class="theme-btn" id="themeBtn" type="button">◐ 테마</button>
+  </nav>
+
+  <main>
+    <!-- ===================== OVERVIEW ===================== -->
+    <section class="day" id="overview">
+      <div class="day-head">
+        <span class="day-num">00</span>
+        <div><h2>G1 vs Go2 — 델타의 전부</h2><p class="day-sub">무엇이 재사용되고 무엇이 달라지나</p></div>
+      </div>
+      <p class="lede">로봇이 바뀌어도 <strong>Isaac Lab · rsl_rl PPO · manager 구조 · terrain · height-scan · export</strong>는
+        전부 그대로다. 바뀌는 건 오직 <strong>로봇 형태에서 오는 네 가지</strong>다.</p>
+
+      <div class="tbl">
+        <table>
+          <thead><tr><th>항목</th><th>G1 (휴머노이드)</th><th>Go2 (4족)</th></tr></thead>
+          <tbody>
+            <tr><td>형태 / DOF</td><td>2족 + 팔·손 · 23~37</td><td class="num">4족 · 12</td></tr>
+            <tr><td>base 링크</td><td class="mono">torso_link</td><td class="mono">base</td></tr>
+            <tr><td>액추에이터</td><td>ImplicitActuator · Kp 100~200</td><td>DCMotor · Kp 25</td></tr>
+            <tr><td>균형</td><td>2점 지지 <span class="tagneg">불안정</span></td><td>4점 지지 <span class="tagpos">정적 안정</span></td></tr>
+            <tr><td>Observation (flat/rough)</td><td class="num">123 / 310</td><td class="num">48 / 235</td></tr>
+            <tr><td>Task ID</td><td class="mono">…-Flat-G1-v0</td><td class="mono">…-Flat-Unitree-Go2-v0</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout"><span class="tag">읽는 법</span>이 문서는 <strong>델타</strong>다. PPO·GAE·clip·sim-to-real 같은
+        공유 이론은 G1 노트를 그대로 보고, 여기서는 <strong>4족에서 실제로 달라진 것 + 직접 돌린 Go2 실험 수치</strong>만 본다.
+        결론부터: 강좌를 G1으로 한 번 익혔다면 Go2는 이 여섯 화면이면 넘어간다.</div>
+
+      <div class="callout warn"><span class="tag">⚠ Task ID 함정</span>G1은 <code class="inl">Isaac-Velocity-Flat-G1-v0</code>였지만
+        Go2는 이름에 <strong><code class="inl">Unitree</code>가 들어간다</strong> — <code class="inl">Isaac-Velocity-Flat-Unitree-Go2-v0</code>.
+        복붙하다 가장 먼저 걸리는 지점.</div>
+    </section>
+
+    <!-- ===================== STRUCTURE ===================== -->
+    <section class="day" id="struct">
+      <div class="day-head"><span class="day-num">01</span>
+        <div><h2>구조 — 12-DOF 4족 articulation</h2><p class="day-sub">inspect_go2.py 실측</p></div></div>
+      <p class="lede">다리 = <strong>hip(벌림) → thigh(허벅지) → calf(정강이)</strong> 3관절 × 4다리 = 12.
+        검사 스크립트를 직접 돌려 실측했다.</p>
+
+      <div class="tiles">
+        <div class="tile accent"><div class="k">DOF (관절)</div><div class="v">12</div><div class="cap">= action 벡터 차원</div></div>
+        <div class="tile"><div class="k">Body (링크)</div><div class="v">19</div><div class="cap">base·다리16·Head 2</div></div>
+        <div class="tile"><div class="k">Actuator 그룹</div><div class="v">1</div><div class="cap">base_legs (전 관절)</div></div>
+        <div class="tile"><div class="k">Observation</div><div class="v">48</div><div class="cap">Flat 태스크 기준</div></div>
+      </div>
+
+      <h3><span class="hx">#</span>관절 이름 · 인덱스 (실측)</h3>
+      <pre><span class="c"># 인덱스는 다리별이 아니라 "관절 레벨별"로 묶인다</span>
+[ 0] FL_hip_joint   [ 1] FR_hip_joint   [ 2] RL_hip_joint   [ 3] RR_hip_joint
+[ 4] FL_thigh_joint [ 5] FR_thigh_joint [ 6] RL_thigh_joint [ 7] RR_thigh_joint
+[ 8] FL_calf_joint  [ 9] FR_calf_joint  [10] RL_calf_joint  [11] RR_calf_joint</pre>
+      <div class="callout warn"><span class="tag">⚠ G1과 같은 함정</span>인덱스가 <strong>hip 4개 → thigh 4개 → calf 4개</strong> 순으로 묶여
+        다리별(FL의 3관절 연속)이 <strong>아니다</strong>(키네마틱 트리 순). 그래서 action/observation은 숫자 인덱스가 아니라
+        <strong>이름/정규식</strong>(<code class="inl">.*_foot</code>, <code class="inl">F[L,R]_thigh_joint</code>)으로만 참조한다.</div>
+
+      <h3><span class="hx">#</span>기본 자세 = 웅크린 준비자세 (default_joint_pos)</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>관절</th><th>값 (rad)</th><th>의미</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">.*L / .*R _hip</td><td class="num">±0.10</td><td>좌·우 대칭 벌림</td></tr>
+          <tr><td class="mono">F[L,R]_thigh</td><td class="num">+0.80</td><td>앞다리 허벅지</td></tr>
+          <tr><td class="mono">R[L,R]_thigh</td><td class="num">+1.00</td><td>뒷다리 더 굽힘 (앞낮뒤높)</td></tr>
+          <tr><td class="mono">.*_calf</td><td class="num">−1.50</td><td>정강이 접음</td></tr>
+        </tbody>
+      </table></div>
+      <p><code class="inl">action=0</code>이면 이 자세를 유지한다. 정책은 "이 웅크린 자세에서 얼마나 벗어날까"만 배우면 되므로
+        <strong>학습이 쉽다</strong> — G1과 같은 <code class="inl">default_offset</code> 원리.</p>
+
+      <div class="check"><div class="ct">자기점검</div><ol>
+        <li>Go2가 왜 12-DOF인지(3관절 × 4다리) 설명할 수 있는가?</li>
+        <li>관절 인덱스가 왜 레벨별로 묶이며, 그래서 무엇을 하면 안 되는가?</li>
+        <li>height-scan은 어느 링크에, 발 접촉은 어느 이름에 붙는가?</li>
+      </ol></div>
+    </section>
+
+    <!-- ===================== MOTOR ===================== -->
+    <section class="day" id="motor">
+      <div class="day-head"><span class="day-num">02</span>
+        <div><h2>DC-Motor 액추에이터</h2><p class="day-sub">Go2 최대의 물리 차이 — 실물 모터에 더 가깝다</p></div></div>
+      <p class="lede">G1은 순수 PD(<code class="inl">ImplicitActuatorCfg</code>)였지만 Go2는 <strong><code class="inl">DCMotorCfg</code></strong> —
+        실제 모터의 <strong>속도-토크 곡선</strong>을 반영한다.</p>
+
+      <div class="tiles">
+        <div class="tile accent"><div class="k">Kp (stiffness)</div><div class="v">25</div><div class="cap">G1 legs ≈178</div></div>
+        <div class="tile"><div class="k">Kd (damping)</div><div class="v">0.5</div><div class="cap">G1 legs 5</div></div>
+        <div class="tile"><div class="k">effort limit</div><div class="v">23.5<small> N·m</small></div><div class="cap">G1 다리 ~300</div></div>
+        <div class="tile"><div class="k">velocity limit</div><div class="v">30<small> rad/s</small></div><div class="cap">속도-토크 포화</div></div>
+      </div>
+
+      <div class="tbl"><table>
+        <thead><tr><th></th><th>Implicit PD (G1)</th><th>DC-Motor (Go2)</th></tr></thead>
+        <tbody>
+          <tr><td>토크 계산</td><td>Kp·(q*−q)−Kd·q̇, effort로 clip</td><td>위 + <strong>속도-토크 곡선</strong> 제한</td></tr>
+          <tr><td>속도 영향</td><td>없음</td><td><strong>속도↑ → 낼 토크↓</strong></td></tr>
+          <tr><td>실물 근접도</td><td>근사</td><td><span class="tagpos">더 정확</span></td></tr>
+          <tr><td>sim-to-real</td><td>액추에이터 gap 큼</td><td><span class="tagpos">gap 작음</span></td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout"><span class="tag">왜 중요한가</span>실제 BLDC 모터는 빨리 돌수록 역기전력으로 토크가 준다. DC-Motor 모델은
+        <code class="inl">saturation_effort</code>·<code class="inl">velocity_limit</code>로 이 곡선을 흉내내
+        <strong>정책이 "실물로 못 내는 토크"에 의존하지 않게</strong> 학습시킨다 = sim-to-real의 액추에이터 gap을
+        학습 단계에서 미리 메우는 것. Go2가 가볍고(≈15kg) 토크한계가 작아 Kp도 G1보다 훨씬 낮다.</div>
+
+      <div class="check"><div class="ct">자기점검</div><ol>
+        <li>DCMotor가 Implicit PD와 무엇이 다른가? (속도-토크 곡선)</li>
+        <li>왜 그것이 sim-to-real에 유리한가?</li>
+        <li>Go2 Kp(25)가 G1(100~200)보다 낮은 이유는?</li>
+      </ol></div>
+    </section>
+
+    <!-- ===================== REWARD ===================== -->
+    <section class="day" id="reward">
+      <div class="day-head"><span class="day-num">03</span>
+        <div><h2>Quadruped Reward</h2><p class="day-sub">형태가 reward를 결정한다 — 팔·손이 없으면 그 항도 없다</p></div></div>
+      <p class="lede">reward는 로봇 형태를 따라간다. G1엔 팔·손·2족 균형용 규제 항이 많았지만,
+        Go2는 그게 없어 <strong>더 단순</strong>하다.</p>
+
+      <div class="tbl"><table>
+        <thead><tr><th>reward 항</th><th>G1 (biped)</th><th>Go2 (quadruped)</th><th>이유</th></tr></thead>
+        <tbody>
+          <tr><td>feet_air_time 함수</td><td class="mono">…_positive_biped</td><td class="mono">feet_air_time</td><td>2족 전용 → 4족 표준</td></tr>
+          <tr><td>feet_slide</td><td><span class="tagpos">있음</span></td><td><span class="tagneg">없음</span></td><td>2족은 미끄러지면 넘어짐</td></tr>
+          <tr><td>joint_deviation_arms</td><td><span class="tagpos">있음</span></td><td><span class="tagneg">없음</span></td><td><strong>팔이 없다</strong></td></tr>
+          <tr><td>joint_deviation_fingers</td><td><span class="tagpos">있음</span></td><td><span class="tagneg">없음</span></td><td><strong>손가락이 없다</strong></td></tr>
+          <tr><td>joint_deviation_torso</td><td><span class="tagpos">있음</span></td><td><span class="tagneg">없음</span></td><td><strong>허리가 없다</strong></td></tr>
+          <tr><td>undesired_contacts</td><td>None(rough)</td><td class="mono">.*THIGH</td><td>허벅지 끌기 방지</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout"><span class="tag">한 줄</span>Go2 reward = <strong>속도추종 + 4족 gait(air_time) + 부드러움 페널티 + 수평유지</strong>.
+        팔·손 규제 항 4~5개가 통째로 사라져 G1보다 직관적이다. flat은 <code class="inl">flat_orientation −2.5</code>·<code class="inl">feet_air_time 0.25</code>로
+        또렷한 걸음을, rough는 속도추종·토크효율을 키운다.</div>
+
+      <div class="check"><div class="ct">자기점검</div><ol>
+        <li>G1의 joint_deviation_arms/fingers/torso·feet_slide가 Go2에서 왜 사라졌는가?</li>
+        <li>Go2의 feet_air_time과 G1의 …_positive_biped 차이는?</li>
+        <li>undesired_contacts가 .*THIGH를 보는 이유는?</li>
+      </ol></div>
+    </section>
+
+    <!-- ===================== TRAIN ===================== -->
+    <section class="day" id="train">
+      <div class="day-head"><span class="day-num">04</span>
+        <div><h2>학습 · 튜닝 (직접 돌린 실측)</h2><p class="day-sub">4족은 평지 보행을 빠르게 배운다</p></div></div>
+      <p class="lede">Flat Go2를 <code class="inl">4096 env · 300 iter · seed 1</code>로 학습. RTX 5090에서 <strong>2분 40초</strong> 만에 완벽 보행.</p>
+
+      <div class="tiles">
+        <div class="tile accent"><div class="k">최종 eplen</div><div class="v">1000<small> /1000</small></div><div class="cap">만점 · 안 넘어짐</div></div>
+        <div class="tile"><div class="k">최종 reward</div><div class="v">34.8</div><div class="cap">iter 299</div></div>
+        <div class="tile"><div class="k">iterations</div><div class="v">300</div><div class="cap">G1 flat은 1500 필요</div></div>
+        <div class="tile"><div class="k">학습 시간</div><div class="v">~2:40</div><div class="cap">4096 env</div></div>
+      </div>
+      <div class="callout"><span class="tag">왜 G1보다 쉬운가</span>obs가 <strong>48차원(G1 123)</strong>으로 작고, 4족은 <strong>4점 지지로 정적 안정</strong>하다.
+        그래서 config에 <code class="inl">max_iterations=300</code>(G1 flat의 1/5)으로 박혀 있고 실제로 그 안에 수렴한다.
+        actor 망도 <code class="inl">48→128→128→128→12</code>로 작다.</div>
+
+      <h3><span class="hx">#</span>튜닝 A — entropy_coef (탐험 유지 다이얼)</h3>
+      <p>동일 조건(512 env · 300 iter · seed 1)에서 <strong>entropy_coef만</strong> 0.0 vs 0.05. G1보다 훨씬 극적으로 갈린다.</p>
+      <div class="meters" aria-label="entropy 별 최종 에피소드 길이">
+        <div class="meter"><div class="lab">ent = 0.0<b>iter 299 eplen · σ 0.33</b></div><div class="track"><div class="fill pos" style="width:100%"></div></div><div class="val">1000</div></div>
+        <div class="meter"><div class="lab">ent = 0.05<b>iter 299 eplen · σ 1.95</b></div><div class="track"><div class="fill warn" style="width:2%"></div></div><div class="val">13</div></div>
+      </div>
+      <div class="callout warn"><span class="tag">⚠ 과한 탐험은 수렴을 막는다</span><code class="inl">ent=0.0</code>은 탐험량 σ가 1.00→0.33으로 수렴,
+        eplen이 iter 100에 이미 1000. <code class="inl">ent=0.05</code>는 σ가 <strong>1.00→1.95로 폭발</strong>해 정책이 계속 흔들려
+        eplen이 <strong>13으로 붕괴</strong>(G1은 그나마 38이었다). 그래도 정답은 0이 아니다 — 어려운 태스크에선 조기수렴 위험이라 기본값 <strong>0.01이 중간</strong>.</div>
+
+      <h3><span class="hx">#</span>튜닝 B — desired_kl (adaptive lr을 몬다)</h3>
+      <p><strong>손잡이는 lr이 아니라 desired_kl</strong>이다. lr은 TB 이벤트(<code class="inl">Loss/learning_rate</code>)에서 추출.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>iter</th><th>lr (kl=0.002)</th><th>lr (kl=0.05)</th><th>eplen (0.002)</th><th>eplen (0.05)</th><th>reward (0.05)</th></tr></thead>
+        <tbody>
+          <tr><td class="num">0</td><td class="num">1.0e-5</td><td class="num">5.1e-3</td><td class="num">13</td><td class="num">13</td><td class="num">−0.54</td></tr>
+          <tr><td class="num">200</td><td class="num">1.0e-5</td><td class="num">2.0e-3</td><td class="num">1000</td><td class="num">955</td><td class="num">+11.1</td></tr>
+          <tr><td class="num">299</td><td class="num">1.0e-5</td><td class="num">8.6e-4</td><td class="num">24</td><td class="num">905</td><td class="num"><span class="pos">+18.7</span></td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout"><span class="tag">KL 온도조절기</span><code class="inl">kl=0.002</code>("조금만 바꿔"): 스케줄러가 lr을 계속 줄여
+        <strong>바닥값 1.0e-5에 붙어버려</strong> 정책이 거의 안 변한다(σ 0.84 유지, 불안정 붕괴).
+        <code class="inl">kl=0.05</code>: lr을 <strong>~500배 키워</strong>(최대 5e-3) 빠르고 안정적으로 학습(reward +18.7, 전체 최고).
+        <strong>desired_kl↑ → lr↑</strong> 같은 방향. 쉬운 flat이라 공격적이 유리했을 뿐, rough·비전엔 0.01이 안전.</div>
+
+      <div class="check"><div class="ct">자기점검</div><ol>
+        <li>Go2 flat이 왜 G1보다 빨리 수렴하는가?</li>
+        <li>entropy_coef를 키우면 mean_noise_std와 eplen이 어떻게 되는가?</li>
+        <li>desired_kl이 learning_rate를 어떻게 자동으로 모는가?</li>
+      </ol></div>
+    </section>
+
+    <!-- ===================== ROUGH ===================== -->
+    <section class="day" id="rough">
+      <div class="day-head"><span class="day-num">05</span>
+        <div><h2>Flat vs Rough — 센서가 붙는다</h2><p class="day-sub">같은 로봇, height-scan 유무의 정량적 대가</p></div></div>
+      <p class="lede">rough는 flat에 <strong>height-scan 187차원</strong>을 더한다(48 → 235). 이 187은
+        <strong>G1과 동일한 17×11 격자</strong> — 부착 링크만 <code class="inl">base</code>(Go2) vs <code class="inl">torso_link</code>(G1)다.</p>
+
+      <h3><span class="hx">#</span>observation 차원</h3>
+      <div class="meters" aria-label="observation 차원 비교">
+        <div class="meter"><div class="lab">Flat<b>obs dim · proprioceptive</b></div><div class="track"><div class="fill" style="width:20%"></div></div><div class="val">48</div></div>
+        <div class="meter"><div class="lab">Rough<b>obs dim · +height_scan 187</b></div><div class="track"><div class="fill" style="width:100%"></div></div><div class="val">235</div></div>
+      </div>
+
+      <h3><span class="hx">#</span>rough 학습 결과 (4096 env · 1000 iter)</h3>
+      <div class="tiles">
+        <div class="tile"><div class="k">최종 eplen</div><div class="v">944</div><div class="cap">flat 1000 · 지형이 어려움</div></div>
+        <div class="tile"><div class="k">최종 reward</div><div class="v">21.6</div><div class="cap">weight 달라 flat과 비교 X</div></div>
+        <div class="tile accent"><div class="k">정책망</div><div class="v" style="font-size:19px">512·256·128</div><div class="cap">flat 128³ → 표현력↑</div></div>
+        <div class="tile"><div class="k">학습 시간</div><div class="v">~44<small> min</small></div><div class="cap">1000 iter</div></div>
+      </div>
+
+      <h3><span class="hx">#</span>속도 — rough는 flat보다 5.6배 느리다</h3>
+      <div class="meters" aria-label="throughput 비교">
+        <div class="meter"><div class="lab">Flat<b>steps / sec · 4096 env</b></div><div class="track"><div class="fill pos" style="width:100%"></div></div><div class="val">215k</div></div>
+        <div class="meter"><div class="lab">Rough<b>steps / sec · 4096 env</b></div><div class="track"><div class="fill warn" style="width:18%"></div></div><div class="val">38k</div></div>
+      </div>
+      <div class="callout"><span class="tag">해석</span>rough가 5.6배 느린 이유 = <strong>height-scan 레이캐스팅(187 rays × 4096 env를 매 스텝)
+        + 거친 지형 메쉬 충돌</strong> 연산. 평지는 단순 plane이라 물리·센서가 가볍다. → "카메라·센서를 쓰면 <code class="inl">num_envs</code>를
+        크게 못 쓴다"는 5일차 원칙의 정량적 실례. reward 절대값(21.6 vs 34.8)은 weight 구성이 달라 <strong>flat/rough 직접 비교 금지</strong>,
+        <strong>eplen이 공정한 신호</strong>다.</div>
+
+      <div class="check"><div class="ct">자기점검</div><ol>
+        <li>flat(48) vs rough(235)의 차이 187은 어디서 오는가?</li>
+        <li>rough가 flat보다 5.6배 느린 이유를 두 가지로 설명할 수 있는가?</li>
+        <li>rough reward가 flat보다 낮은 게 왜 "못해서"가 아닌가?</li>
+      </ol></div>
+    </section>
+
+    <!-- ===================== DEPLOY ===================== -->
+    <section class="day" id="deploy">
+      <div class="day-head"><span class="day-num">06</span>
+        <div><h2>Export · Sim-to-Real</h2><p class="day-sub">배포 파이프라인은 G1과 완전히 동일</p></div></div>
+      <p class="lede"><code class="inl">play.py</code> 실행 시 actor만 추출돼 export된다. 실제로 돌려 확인했다.</p>
+
+      <div class="tiles">
+        <div class="tile"><div class="k">policy.onnx</div><div class="v">164<small> KB</small></div><div class="cap">ONNX (프레임워크 독립)</div></div>
+        <div class="tile"><div class="k">policy.pt</div><div class="v">174<small> KB</small></div><div class="cap">TorchScript</div></div>
+        <div class="tile accent"><div class="k">입력 → 출력</div><div class="v" style="font-size:22px">48→12</div><div class="cap">obs → action, 순수 MLP</div></div>
+      </div>
+      <pre><span class="c"># 실제 export한 actor</span>
+Actor MLP: Linear(<span class="a">48</span>→128) → ELU → 128 → 128 → Linear(128→<span class="a">12</span>)
+exported/ ├─ policy.onnx  └─ policy.pt   <span class="c"># critic·PPO 다 버림, 결정론적 추론</span></pre>
+      <div class="callout warn"><span class="tag">⚠ 진행 중 만난 함정 3가지</span>
+        ① <code class="inl">inspect_go2.py</code>는 print 버퍼링 + <code class="inl">simulation_app.close()</code> 스핀으로 로그가 안 뜬다 →
+        <code class="inl">PYTHONUNBUFFERED=1</code> + <code class="inl">os._exit(0)</code>로 해결.
+        ② <code class="inl">play.py</code>는 export 후 <strong>무한 재생 루프</strong> → SIGKILL 필요(SIGTERM 무시됨).
+        ③ Go2 USD가 S3에서 <strong>간헐 fetch 실패</strong> → 재시도로 복구.</div>
+
+      <div class="callout"><span class="tag">종합</span>배포 정책은 <strong>~170KB짜리 MLP</strong> 하나. sim-to-real 개념(domain randomization·관찰 노이즈·
+        ROS2 <code class="inl">/cmd_vel</code>·teacher–student)은 로봇과 무관하게 <strong>G1 노트 그대로</strong>다. Go2에서 새로 볼 건 여기까지 —
+        나머지는 이미 익힌 파이프라인이 그대로 굴러간다.</div>
+
+      <div class="check"><div class="ct">자기점검</div><ol>
+        <li>export 산출물의 입력/출력 차원(48→12)은 무엇에서 오는가?</li>
+        <li>play.py의 무한루프·USD 간헐실패에 어떻게 대응했는가?</li>
+        <li>sim-to-real 개념 중 Go2에서 달라지는 게 있는가? (없다 — 왜?)</li>
+      </ol></div>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <div class="foot-in">
+    <span class="eyebrow">워크스페이스 산출물 · Go2 델타</span>
+    <div class="filetree">rl_course_ws/
+├── <b>course_prep_go2.html</b>     <span style="color:var(--faint)">← 이 페이지</span>
+├── course_prep.html            <span style="color:var(--faint)"># G1 종합본 (짝 문서)</span>
+├── course_note/go2/
+│   ├── <b>README</b>.md · <b>GO2_VS_G1</b>.md
+│   ├── <b>GO2_STRUCTURE_ACTUATOR</b>.md   <b>GO2_REWARD</b>.md
+│   └── <b>GO2_EXPERIMENTS</b>.md
+├── scripts/inspect_go2.py
+└── logs/   <span style="color:var(--faint)"># go2_flat/rough/export/튜닝 로그 (전부 실측)</span></div>
+    <p style="font-size:13px;color:var(--muted);max-width:70ch;margin-top:18px">
+      공유 이론(PPO·GAE·sim-to-real)은 <code class="inl">course_note/</code>의 G1 DAY 노트를 그대로 본다. 이 문서와 <code class="inl">go2/</code> 노트는
+      <strong>4족 델타</strong>만 다룬다. 실행은 <code class="inl">cd /isaac-sim/IsaacLab &amp;&amp; ./isaaclab.sh -p &lt;script&gt;</code>.
+      수치·DOF·차원은 이 환경(Isaac Sim 5.1.0 / Isaac Lab 2.3.2, RTX 5090) 실측이며 모델·옵션에 따라 달라질 수 있다.</p>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    var root=document.documentElement, btn=document.getElementById('themeBtn');
+    btn && btn.addEventListener('click',function(){
+      var cur=root.getAttribute('data-theme');
+      if(!cur){ cur = matchMedia('(prefers-color-scheme:dark)').matches ? 'dark':'light'; }
+      root.setAttribute('data-theme', cur==='dark'?'light':'dark');
+    });
+    var links=[].slice.call(document.querySelectorAll('nav.rail a'));
+    var map={}; links.forEach(function(a){ map[a.getAttribute('href').slice(1)]=a; });
+    var obs=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(e.isIntersecting){
+          links.forEach(function(a){a.classList.remove('active');});
+          var a=map[e.target.id]; a&&a.classList.add('active');
+        }
+      });
+    },{rootMargin:'-15% 0px -70% 0px'});
+    document.querySelectorAll('section.day').forEach(function(s){obs.observe(s);});
+  })();
+</script>

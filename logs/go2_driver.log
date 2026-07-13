@@ -1,0 +1,14 @@
+############## STEP0 INSPECT (구조 실측)  ::  00:28:11 ##############
+############## STEP0 DONE  ::  00:28:16 ##############
+############## STEP1 FLAT TRAIN (4096env/300iter/seed1)  ::  00:28:16 ##############
+############## STEP1 DONE  ::  00:30:56 ##############
+############## STEP2 PLAY/EXPORT  ::  00:30:56 ##############
+/tmp/claude-1234/-isaac-sim-rl-course-ws/c46a28d1-78ff-49d4-b622-d1ce043ae2be/scratchpad/go2_run_all.sh: line 31: 52061 Killed                  $RUN $PLAY --task Isaac-Velocity-Flat-Unitree-Go2-Play-v0 --headless --num_envs 32 > $L/go2_export.log 2>&1
+############## STEP2 DONE  ::  00:46:51 ##############
+############## STEP3 TUNE entropy_coef=0.0  ::  00:46:51 ##############
+############## STEP4 TUNE entropy_coef=0.05  ::  00:48:51 ##############
+############## STEP5 TUNE desired_kl=0.002  ::  00:50:58 ##############
+############## STEP6 TUNE desired_kl=0.05  ::  00:54:17 ##############
+############## STEP3-6 DONE  ::  00:55:05 ##############
+############## STEP7 ROUGH TRAIN (4096env/1000iter/seed1)  ::  00:55:05 ##############
+############## STEP7 DONE — ALL COMPLETE  ::  00:56:04 ##############
