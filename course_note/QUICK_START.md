@@ -248,12 +248,15 @@ logs/rsl_rl/g1_flat/<run>/exported/
 불만족스러운 결과를 **처음부터 다시 할 필요 없이**, 특정 체크포인트에서 이어서 학습할 수 있다. `runner.load()`가 **정책+critic 가중치·optimizer 상태·iteration 번호까지 전부 복원**해 끊김 없이 이어간다.
 
 ```bash
-# 예: 방금 100-iter 런(model_99)에서 이어서 1400회 더 → 총 iter 99→1499
+# 예: 방금 100-iter 런(model_99)에서 이어서 1400회 더 → iter 99→1499
 ./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py \
     --task Isaac-Velocity-Flat-G1-v0 --headless --num_envs 4096 --max_iterations 1400 \
-    agent.resume=true \
-    agent.load_run=2026-07-15_00-46-58 agent.load_checkpoint=model_99.pt
+    --resume --load_run 2026-07-15_00-46-58 --checkpoint model_99.pt
 ```
+> ⚠️ **함정(실측): `agent.resume=true` (hydra)로는 resume 안 됨 — 반드시 `--resume` 플래그.**
+> `cli_args.py`에서 `--resume`가 `store_true, default=False`라, 플래그를 안 주면 `agent_cfg.resume`을 **False로 덮어써** hydra override(`agent.resume=true`)를 무효화한다. (`--load_run`/`--checkpoint`는 기본 None이라 hydra로 줘도 살아남지만, resume 자체가 false면 로드가 안 일어남)
+> **resume 확인 3신호**: ① `[INFO]: Loading model checkpoint from:` 로그, ② 첫 iteration이 **99/199**처럼 0이 아닌 값에서 시작, ③ `params/agent.yaml`에 `resume: true`. (셋 다 아니고 model_0부터 저장되면 fresh로 돈 것)
+> train의 `--checkpoint`는 **파일명**(`model_99.pt`), play의 `--checkpoint`는 **전체경로** — 서로 다름.
 
 **★ 꼭 주의 — `--max_iterations`는 "추가" 횟수지 총량이 아님** (실측: `tot_iter = start_iter + num_learning_iterations`)
 - model_99(=iter 99)에서 resume + `max_iterations 1400` → **99 → 1499**까지 (1400회 더 돎).
