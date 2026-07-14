@@ -243,14 +243,34 @@ logs/rsl_rl/g1_flat/<run>/exported/
 
 ---
 
-## ⑥ (선택) 이어서 학습 (Resume) — 중단점부터 재개
+## ⑥ (선택) 이어서 학습 (Resume) — 처음부터 안 하고 체크포인트에서 재개
+
+불만족스러운 결과를 **처음부터 다시 할 필요 없이**, 특정 체크포인트에서 이어서 학습할 수 있다. `runner.load()`가 **정책+critic 가중치·optimizer 상태·iteration 번호까지 전부 복원**해 끊김 없이 이어간다.
 
 ```bash
+# 예: 방금 100-iter 런(model_99)에서 이어서 1400회 더 → 총 iter 99→1499
 ./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py \
-    --task Isaac-Velocity-Flat-G1-v0 --headless --num_envs 4096 --max_iterations 3000 \
-    --resume agent.load_run=<타임스탬프> agent.load_checkpoint=model_1499.pt
+    --task Isaac-Velocity-Flat-G1-v0 --headless --num_envs 4096 --max_iterations 1400 \
+    agent.resume=true \
+    agent.load_run=2026-07-15_00-46-58 agent.load_checkpoint=model_99.pt
 ```
-- "방향은 맞는데 덜 됐다" 싶으면 max_iterations 늘려 이어서(대부분 "안 됨"은 "덜 됨", [[PPO_TUNING]] §10-5).
+
+**★ 꼭 주의 — `--max_iterations`는 "추가" 횟수지 총량이 아님** (실측: `tot_iter = start_iter + num_learning_iterations`)
+- model_99(=iter 99)에서 resume + `max_iterations 1400` → **99 → 1499**까지 (1400회 더 돎).
+- "총 1500 채우고 싶다" = 이미 100 했으니 **추가 1400**을 넣는 것.
+- 로그는 **새 타임스탬프 폴더**에 쌓임(옛 가중치를 불러와 새 폴더에 저장). 원본 런은 보존됨.
+
+**언제 resume vs 언제 처음부터?**
+
+| 상황 | 권장 |
+|---|---|
+| 방향 맞는데 **덜 학습됨**(eplen 상승 중) | ✅ **resume** — 그냥 더 돌리기 |
+| 하이퍼파라미터 **살짝** 조정(warm-start) | ✅ resume 가능(가중치 유지+새 설정 적용) |
+| **튜닝 A/B 공정 비교** | ❌ 처음부터(같은 출발점이어야, [[PPO_TUNING]] §12) |
+| **reward/observation 크게 변경** | ❌ 처음부터(critic이 옛 reward 기준이라 꼬임) |
+| 정책이 **나쁜 곳에 붕괴/조기수렴** | ❌ 처음부터([[PPO_TUNING]] §10-2) |
+
+> 판단 한 줄: **"같은 목표로 더 오래"면 resume, "설정 바꿔 다른 결과 보려는 실험"이면 처음부터.** 대부분의 "안 됨"은 사실 "덜 됨"이라 resume가 답인 경우가 많다([[PPO_TUNING]] §10-5).
 
 ---
 
