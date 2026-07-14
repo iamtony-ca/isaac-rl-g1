@@ -330,3 +330,194 @@ L_critic = max( (V(s_t)−R_t)² , (V_clip−R_t)² )   # 더 보수적인 쪽
 4) 폐기 → 1)  (max_iterations회)
 ```
 → [[PPO_TUNING]]의 "증상→손잡이"와 이 그림을 함께 보면 어디를 왜 만지는지 완전히 연결된다.
+
+---
+
+## 부록 C. Direct Workflow — Manager-based의 대척점 (cartpole 코드 대조)
+
+> 1-4절·A절에서 "우리 강좌는 Manager-based, 반대는 Direct"라고만 했다. 여기서 **같은 cartpole 태스크의 두 버전 실제 코드**를 나란히 놓고 박제한다.
+> 실측 출처: `direct/cartpole/cartpole_env.py` vs `manager_based/classic/cartpole/cartpole_env_cfg.py` (+`mdp/`). **두 버전의 reward 가중치·물리 설정이 완전히 동일**해서 순수하게 "구현 방식"만 비교된다.
+
+### C-1. 한 줄 정의
+- **Manager-based**: 나는 **config(선언)만** 쓰고, 범용 엔진 `ManagerBasedRLEnv`가 Manager들을 돌려 MDP를 조립. → *주문서에 체크*.
+- **Direct**: 나는 **환경 클래스 `DirectRLEnv`를 상속해 step 로직을 직접 코딩**. 관찰·보상·종료를 torch로 손수 구현. → *반죽부터 직접*.
+
+### C-2. 파일 구조부터 다르다 (같은 cartpole)
+
+```
+manager_based/classic/cartpole/           direct/cartpole/
+├── cartpole_env_cfg.py   ← config만          ├── cartpole_env.py   ← 클래스+로직 전부
+└── mdp/ (rewards.py 등)   ← term 함수 라이브러리   └── (mdp/ 폴더 없음)
+    ※ env.py 없음! 범용 ManagerBasedRLEnv 사용     ※ 클래스 안에 step 로직이 직접 있음
+```
+
+- **Manager-based엔 env.py가 없다.** `ManagerBasedRLEnv`를 그대로 쓰고 나는 `ObservationsCfg`/`RewardsCfg`만 채운다.
+- **Direct엔 `CartpoleEnv(DirectRLEnv)` 클래스가 있고** 그 안에 `_get_observations()`·`_get_rewards()` 등이 직접 있다.
+
+### C-3. 관찰(observation) 대조 — 선언 vs 코드
+
+**Manager-based** (`cartpole_env_cfg.py:65-82`) — "무엇을 넣을지" term으로 나열, 차원은 자동 계산:
+```python
+@configclass
+class ObservationsCfg:
+    @configclass
+    class PolicyCfg(ObsGroup):
+        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel)   # 함수를 가리킴
+        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel)
+        def __post_init__(self):
+            self.concatenate_terms = True                 # 자동 concat → 차원 자동
+    policy: PolicyCfg = PolicyCfg()
+```
+
+**Direct** (`cartpole_env.py:94-105`) — 텐서를 **직접 concat**하고 차원도 cfg에 정수로 박음(`observation_space=4`):
+```python
+def _get_observations(self) -> dict:
+    obs = torch.cat((pole_pos, pole_vel, cart_pos, cart_vel), dim=-1)   # 손으로 이어붙임
+    return {"policy": obs}
+```
+
+### C-4. 보상(reward) 대조 — 같은 숫자, 다른 표현
+
+**두 버전의 가중치가 완전히 동일**(alive +1.0, terminating −2.0, pole_pos −1.0, cart_vel −0.01, pole_vel −0.005). 표현 방식만 다르다.
+
+**Manager-based** (`cartpole_env_cfg.py:111-136`) — term 리스트, 각 항이 `func`+`weight`+`params`:
+```python
+@configclass
+class RewardsCfg:
+    alive       = RewTerm(func=mdp.is_alive,            weight=1.0)
+    terminating = RewTerm(func=mdp.is_terminated,       weight=-2.0)
+    pole_pos    = RewTerm(func=mdp.joint_pos_target_l2, weight=-1.0, params={...})
+    cart_vel    = RewTerm(func=mdp.joint_vel_l1,        weight=-0.01, params={...})
+    pole_vel    = RewTerm(func=mdp.joint_vel_l1,        weight=-0.005, params={...})
+```
+
+**Direct** (`cartpole_env.py:107-120` + `156-175`) — 가중치는 평평한 cfg 필드, 합산은 `@torch.jit.script` 함수 하나로:
+```python
+# cfg 안: rew_scale_alive=1.0, rew_scale_terminated=-2.0, rew_scale_pole_pos=-1.0 ...
+def _get_rewards(self) -> torch.Tensor:
+    return compute_rewards(self.cfg.rew_scale_alive, ...)   # 직접 계산 함수 호출
+
+@torch.jit.script
+def compute_rewards(rew_scale_alive, ..., pole_pos, pole_vel, ...):
+    rew_alive    = rew_scale_alive * (1.0 - reset_terminated.float())
+    rew_pole_pos = rew_scale_pole_pos * torch.sum(torch.square(pole_pos)...)
+    ...
+    return rew_alive + rew_termination + rew_pole_pos + rew_cart_vel + rew_pole_vel  # 손으로 합산
+```
+
+### C-5. Manager가 하던 일 → Direct에서 내가 오버라이드하는 메서드
+
+| MDP 요소 | Manager-based (선언) | Direct (직접 구현 메서드) |
+|---|---|---|
+| 씬 구성 | `SceneCfg` (거의 자동) | `_setup_scene()` — spawn·복제 직접 |
+| 행동 적용 | `ActionsCfg` / ActionManager | `_pre_physics_step()` + `_apply_action()` |
+| 관찰 | `ObservationsCfg` / ObsManager | `_get_observations()` |
+| 보상 | `RewardsCfg` / RewardManager | `_get_rewards()` |
+| 종료 | `TerminationsCfg` / TerminationManager | `_get_dones()` → `(terminated, time_out)` |
+| 리셋/랜덤화 | `EventCfg` / EventManager | `_reset_idx(env_ids)` |
+| obs/action 차원 | term에서 **자동 계산** | cfg에 **정수로 명시**(`observation_space`, `action_space`) |
+| 베이스 클래스 | `ManagerBasedRLEnvCfg` (env는 범용) | `DirectRLEnvCfg` + `DirectRLEnv` **상속** |
+
+### C-6. 내 튜닝 워크플로에 미치는 실제 차이 — hydra override
+
+가장 실무적인 차이. [[DAY4_reward_shaping]]에서 코드 수정 없이 A/B 실험한 게 Manager-based라 가능했던 것:
+
+| | Manager-based | Direct |
+|---|---|---|
+| reward 가중치 override | `env.rewards.feet_air_time.weight=1.5` (**중첩 term 경로**) | `env.rew_scale_pole_pos=-2.0` (**평평한 필드**) — 되긴 됨 |
+| term 추가/제거 | config에 term 한 줄 추가 → **코드 0줄** | `_get_rewards()`·함수 시그니처를 **직접 수정** |
+| 관찰 항목 교체 | `ObservationsCfg`에 ObsTerm 추가/삭제 | `_get_observations()` concat을 **손으로 수정** |
+
+→ 값만 흔드는 실험은 둘 다 가능하지만, **"구성을 바꾸는" 실험(항 추가·센서 교체)은 Manager-based가 코드 없이, Direct는 코딩 필요**.
+
+### C-7. 언제 무엇을 쓰나 (+ Isaac Lab 실제 예)
+
+| | Manager-based | Direct |
+|---|---|---|
+| 강점 | 모듈 조립·config만·term 재사용·CLI 실험 | 완전한 제어·복잡 로직·매니저 오버헤드 없음 |
+| 약점 | term 추상화에 안 맞는 로직은 껄끄러움 | 코드량·유지보수↑, 구성 override 불가 |
+| Isaac Lab 태스크 | **velocity 보행**(G1/Go2/ANYmal-c) | shadow_hand·allegro_hand(손가락 조작), factory·forge(접촉 많은 조립), humanoid_amp(모방학습) |
+
+- **표준 보행 = Manager-based가 정석** → 그래서 이 강좌 전체(G1·Go2)가 Manager-based.
+- **관찰·보상이 복잡하게 얽혀 term으로 못 쪼개는 태스크(dexterous manipulation, AMP, contact-rich assembly) = Direct**.
+- 커스텀 로봇([[CUSTOM_ROBOT]]) 붙일 때도: 표준 보행이면 Manager-based 상속이 빠르고, 로봇 특유의 기묘한 보상/센서 로직이 필요하면 그때 Direct 고려.
+
+> 요약: **Manager-based = "레고로 조립"(선언), Direct = "직접 조각"(코드).** 기능은 겹치지만, 표준 태스크의 빠른 실험은 Manager-based가, 표준 틀을 벗어나는 연구는 Direct가 유리하다. 같은 cartpole이 두 버전으로 다 존재하는 이유가 바로 이 "교육용 대조" 목적이다.
+
+### C-8. 실행·CLI 대조 — 실제로 돌릴 때 뭐가 다른가
+
+> 실측 출처: `direct/cartpole/__init__.py`·`manager_based/classic/cartpole/__init__.py`(gym 등록), `scripts/reinforcement_learning/rsl_rl/{train,play}.py`, `isaaclab.sh`.
+> **핵심 선결론: CLI에서 두 방식의 명령은 거의 동일하고 `--task` ID 하나만 다르다.** 진짜 차이는 그 ID가 무엇으로 연결되고(entry_point), 무엇을 override할 수 있느냐다.
+
+**(1) gym 등록의 `entry_point`가 갈림길**
+```python
+# Manager-based
+gym.register(id="Isaac-Cartpole-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",       # ← 범용 엔진(내 클래스 아님)
+    kwargs={"env_cfg_entry_point": "...:CartpoleEnvCfg", ...})
+# Direct
+gym.register(id="Isaac-Cartpole-Direct-v0",
+    entry_point="....cartpole_env:CartpoleEnv",          # ← 내가 짠 클래스
+    kwargs={"env_cfg_entry_point": "....cartpole_env:CartpoleEnvCfg", ...})
+```
+- Manager-based: `gym.make()`가 **범용 `ManagerBasedRLEnv`를 만들고** 내 Cfg를 먹여 Manager가 조립.
+- Direct: `gym.make()`가 **내 `CartpoleEnv` 클래스를 직접 인스턴스화**.
+- → **PPO 러너(rsl_rl) 입장에선 둘 다 똑같은 gym env**라 학습 스크립트·명령이 공유된다.
+
+**(2) 학습 명령 — `--task`만 교체**
+```bash
+cd /isaac-sim/IsaacLab
+# Manager-based
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py \
+    --task Isaac-Cartpole-v0        --headless --num_envs 4096 --max_iterations 150
+# Direct (딱 --task 만 다름)
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py \
+    --task Isaac-Cartpole-Direct-v0 --headless --num_envs 4096 --max_iterations 150
+```
+- `./isaaclab.sh -p` = Isaac Sim 파이썬으로 스크립트 실행 래퍼. 공통 플래그: `--num_envs`·`--max_iterations`·`--headless`·`--video`·`--seed`.
+- 로그 폴더는 각자 `experiment_name`으로 분리 → direct는 `logs/rsl_rl/cartpole_direct/<타임스탬프>/`. 같이 돌려도 안 섞임.
+
+**(3) 재생·export — 이것도 task만 교체**
+```bash
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/play.py \
+    --task Isaac-Cartpole-Direct-v0 --num_envs 32     # 최신 체크포인트 자동 로드 + policy.pt/onnx export
+```
+export 흐름은 [[DAY6_ros2_sim2real]]의 G1과 동일.
+
+**(4) ★ 실사용이 갈리는 곳 — hydra override 경로**
+```bash
+# Manager-based: reward가 "term"이라 중첩 경로
+... --task Isaac-Cartpole-v0        env.rewards.pole_pos.weight=-2.0  env.rewards.cart_vel.weight=-0.05
+# Direct: reward가 "평평한 cfg 필드"라 경로가 짧음
+... --task Isaac-Cartpole-Direct-v0 env.rew_scale_pole_pos=-2.0       env.rew_scale_cart_vel=-0.05
+```
+
+| 하고 싶은 것 | Manager-based | Direct |
+|---|---|---|
+| reward 가중치 값 변경 | `env.rewards.pole_pos.weight=…` (CLI) | `env.rew_scale_pole_pos=…` (CLI) |
+| **새 reward 항 추가** | `RewardsCfg`에 `RewTerm` 한 줄 → 엔진수정 0 | `compute_rewards()`+`_get_rewards()` **코드수정**(CLI 불가) |
+| **관찰 항목 교체** | `ObservationsCfg`에 `ObsTerm` 추가/삭제 | `_get_observations()` `torch.cat` **직접수정** |
+
+→ [[DAY4_reward_shaping]]에서 재학습 스크립트 안 건드리고 A/B 돌린 건 **Manager-based라 가능**. Direct면 "항 추가"마다 `cartpole_env.py`를 열어 고쳐야 함.
+
+**(5) PPO 하이퍼파라미터는 양쪽 동일**
+env(reward)와 달리 **agent(PPO) 손잡이는 두 방식 CLI가 완전히 같다**(둘 다 같은 `CartpolePPORunnerCfg`):
+```bash
+... --task <아무거나>  agent.max_iterations=300  agent.algorithm.entropy_coef=0.01 \
+                       agent.algorithm.desired_kl=0.02  agent.policy.init_noise_std=1.5
+```
+→ [[PPO_PAPER_REVIEW]]·[[PPO_TUNING]]의 `desired_kl`·`entropy_coef` 튜닝은 workflow와 무관하게 동일 적용. (direct cartpole 기본값: `max_iterations=150`, `entropy_coef=0.005`, `num_steps_per_env=16` — 보행보다 훨씬 가벼움)
+
+**(6) train.py 실행 시 내부 흐름**
+```
+1) SimulationApp 실행(--headless면 창 없이) → GPU 물리 초기화
+2) hydra가 --task 등록정보에서 env_cfg + agent_cfg 로드 (+ CLI override 적용)
+3) gym.make():  Manager-based → ManagerBasedRLEnv(cfg) [Manager가 term 조립]
+               Direct        → CartpoleEnv(cfg)        [내 클래스 _setup_scene 실행]
+4) RslRlVecEnvWrapper로 감쌈 → 이 지점부터 러너는 둘을 구별 못 함(같은 인터페이스)
+5) OnPolicyRunner가 PPO 루프(수집→GAE→update) 돌림
+6) logs/rsl_rl/<experiment_name>/<타임스탬프>/ 에 체크포인트·TB 기록
+```
+**3번 한 줄만 다르고 나머지는 100% 공유** — "어떤 workflow냐"는 env를 *만드는 순간*까지만 의미 있고, 학습 루프·로깅·export는 동일하다.
+
+> C-8 한 줄 요약: **CLI 차이는 `--task` ID 하나뿐.** 실사용 갈림길은 "reward 항/관찰을 *구조적으로* 바꾸는 실험"이 Manager-based는 config(+CLI)로, Direct는 env 클래스 코드로 이뤄진다는 것. PPO 튜닝은 양쪽 동일.
