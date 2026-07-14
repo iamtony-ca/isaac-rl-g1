@@ -220,9 +220,13 @@ cd /isaac-sim/IsaacLab
 
 **특정 체크포인트 지정** (기본은 최신 자동):
 ```bash
-    --checkpoint /isaac-sim/IsaacLab/logs/rsl_rl/g1_flat/<타임스탬프>/model_1499.pt
+# 예: 특정 런의 중간 체크포인트(model_50)를 --checkpoint 로 직접 지정
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/play.py \
+    --task Isaac-Velocity-Flat-G1-Play-v0 --num_envs 16 \
+    --checkpoint /isaac-sim/IsaacLab/logs/rsl_rl/g1_flat/2026-07-15_00-46-58/model_50.pt
 # 또는 특정 run 폴더 선택: agent.load_run=<타임스탬프> agent.load_checkpoint=model_1499.pt
 ```
+> 어떤 체크포인트가 로드됐는지는 실행 로그의 `[INFO]: Loading model checkpoint from: ...` 줄로 확인.
 
 ---
 
