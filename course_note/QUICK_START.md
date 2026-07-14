@@ -142,9 +142,12 @@ logs/rsl_rl/g1_flat/<타임스탬프>/
 학습을 돌리면서 **다른 터미널**에서:
 ```bash
 cd /isaac-sim/IsaacLab
-tensorboard --logdir logs/rsl_rl/g1_flat
-# 브라우저에서 http://localhost:6006
+# ⚠️ tensorboard는 시스템 PATH에 없다(Isaac Sim 내장 파이썬에 설치). 아래 중 하나:
+/isaac-sim/kit/python/bin/tensorboard --logdir logs/rsl_rl/g1_flat        # 방법1: 전체경로
+# ./isaaclab.sh -p -m tensorboard.main --logdir logs/rsl_rl/g1_flat       # 방법2: isaaclab 파이썬
+# 브라우저에서 http://localhost:6006  (원격이면 --bind_all 또는 ssh -L 6006:localhost:6006)
 ```
+> `tensorboard: command not found` 뜨면 위 이유. 별칭 등록하면 편함: `alias tensorboard=/isaac-sim/kit/python/bin/tensorboard`
 - **가장 먼저 볼 지표**: `Train/mean_episode_length`(=eplen, 오래 버틸수록 잘 걷는 것 — reward 숫자보다 이걸 봐라, [[DAY3]]).
 - 그 외 `Policy/mean_noise_std`(탐험량), `Loss/value_function`(critic 학습), `Loss/learning_rate`(adaptive가 출렁이는 게 정상). 지표 해석 전체는 [[TENSORBOARD]].
 
