@@ -135,6 +135,48 @@ logs/rsl_rl/g1_flat/<타임스탬프>/
 ```
 (rough는 `g1_rough/`. experiment_name으로 폴더가 갈린다.)
 
+### 📊 실제 실행 예시 — 위 튜닝 CLI를 100 iter 돌린 결과 (RTX 5090)
+
+돌린 명령 (검증용으로 `--max_iterations 100`, 튜닝 override 3개):
+```bash
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py \
+    --task Isaac-Velocity-Flat-G1-v0 --headless --num_envs 4096 --max_iterations 100 \
+    agent.algorithm.entropy_coef=0.02 agent.algorithm.desired_kl=0.02 \
+    env.rewards.track_lin_vel_xy_exp.weight=1.5
+```
+
+마지막(iter 99/100) 출력 — **정상 완주 시 이렇게 생겼다**:
+```
+                      Learning iteration 99/100
+       Computation: 117699 steps/s (collection: 0.784s, learning 0.051s)
+             Mean action noise std: 1.62
+          Mean value_function loss: 0.0069
+               Mean surrogate loss: -0.0264
+                       Mean reward: -5.97
+               Mean episode length: 67.15
+  Episode_Reward/track_lin_vel_xy_exp: 0.0303      ← 실제 태스크 보상(+)
+  Episode_Reward/termination_penalty:  -0.2000     ← 지금 제일 큰 벌점(넘어짐)
+  Metrics/base_velocity/error_vel_xy:   0.1092     ← 전진속도 오차 ~0.1 m/s
+  Metrics/base_velocity/error_vel_yaw:  0.5612     ← 회전은 아직 못 따라감
+    Episode_Termination/base_contact:   1.0000     ← 지금은 다 넘어져서 끝남
+        Episode_Termination/time_out:   0.0000
+                   Total timesteps: 9830400  (=4096×24×100)
+                     Training time: 87.56 seconds
+```
+
+**이 숫자 읽는 법** (자세한 이론은 [[PPO_TUNING]] · [[TENSORBOARD]]):
+
+| 지표 | 값 | 의미 |
+|---|---|---|
+| **Mean episode length** | **67.15** | ★ 학습 성공의 진짜 신호. 11→67로 상승 중(100 iter라 아직 초반, 완보는 ~1500 iter) |
+| Mean reward | −5.97 | 음수는 **정상** — 벌점 합이 커서. **이 숫자로 판단하지 말 것**([[DAY3]]) |
+| Mean action noise std | 1.62 | 초기 1.0보다 **올라감** = `entropy_coef=0.02`(기본 0.008↑)의 직접 증거(탐험 강화) |
+| base_contact / time_out | 1.0 / 0.0 | 지금은 거의 다 넘어짐. 학습되면 base_contact↓·time_out↑로 뒤집힘 |
+| error_vel_xy | 0.109 | 전진속도는 꽤 따라감. yaw(0.56)는 아직 |
+| Computation | 117k steps/s | collection 0.784s ≫ learning 0.051s → **시뮬이 병목**(그래서 num_envs↑ = 주로 collection↑) |
+
+> **한 줄**: `eplen이 오르고`, `error_vel_xy가 줄고`, 에러 없이 iter가 끝났으면 **정상**. reward 숫자·초반 base_contact=1.0에 겁먹지 말 것. 여기서 `--max_iterations 1500`으로 늘리면 실제로 걷는 정책이 된다.
+
 ---
 
 ## ③ 모니터링 — TensorBoard로 학습 상태 보기
@@ -142,12 +184,13 @@ logs/rsl_rl/g1_flat/<타임스탬프>/
 학습을 돌리면서 **다른 터미널**에서:
 ```bash
 cd /isaac-sim/IsaacLab
-# ⚠️ tensorboard는 시스템 PATH에 없다(Isaac Sim 내장 파이썬에 설치). 아래 중 하나:
-/isaac-sim/kit/python/bin/tensorboard --logdir logs/rsl_rl/g1_flat        # 방법1: 전체경로
-# ./isaaclab.sh -p -m tensorboard.main --logdir logs/rsl_rl/g1_flat       # 방법2: isaaclab 파이썬
+# ✅ 이 환경에서 되는 유일한 방법 — isaaclab 파이썬으로 실행(필요한 의존성 PYTHONPATH가 세팅됨)
+./isaaclab.sh -p -m tensorboard.main --logdir logs/rsl_rl/g1_flat
 # 브라우저에서 http://localhost:6006  (원격이면 --bind_all 또는 ssh -L 6006:localhost:6006)
 ```
-> `tensorboard: command not found` 뜨면 위 이유. 별칭 등록하면 편함: `alias tensorboard=/isaac-sim/kit/python/bin/tensorboard`
+> ⚠️ `tensorboard`(시스템 PATH)나 `/isaac-sim/kit/python/bin/tensorboard`(bin 직접)는 **안 됨**:
+> 전자는 `command not found`, 후자는 `ModuleNotFoundError: markupsafe`(kit 파이썬 site-packages만 봐서). 반드시 `./isaaclab.sh -p -m tensorboard.main` 형태로.
+> `TensorFlow installation not found` 경고는 정상(무시). 별칭: `alias tensorboard='/isaac-sim/IsaacLab/isaaclab.sh -p -m tensorboard.main'`
 - **가장 먼저 볼 지표**: `Train/mean_episode_length`(=eplen, 오래 버틸수록 잘 걷는 것 — reward 숫자보다 이걸 봐라, [[DAY3]]).
 - 그 외 `Policy/mean_noise_std`(탐험량), `Loss/value_function`(critic 학습), `Loss/learning_rate`(adaptive가 출렁이는 게 정상). 지표 해석 전체는 [[TENSORBOARD]].
 
